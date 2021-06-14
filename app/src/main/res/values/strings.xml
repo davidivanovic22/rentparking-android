@@ -3,4 +3,8 @@
     <string name="mapbox_access_token">pk.eyJ1IjoiZGF2aWRpdmFub3ZpYzIyIiwiYSI6ImNrcGZpZGNtbjI3dXUydm5seGh5ajV4aXYifQ.4Q1c-djtUvRf_Bwro4t6hg</string>
     <string name="todo">TODO</string>
     <string name="download_file">Download File</string>
+    <string name="location">Location</string>
+    <string name="search">Search</string>
+    <string name="parkings">Parkings</string>
+    <string name="arrow">Arrow</string>
 </resources>

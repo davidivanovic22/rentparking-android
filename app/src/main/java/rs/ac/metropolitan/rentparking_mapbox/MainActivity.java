@@ -1,31 +1,38 @@
 package rs.ac.metropolitan.rentparking_mapbox;
 
+import android.Manifest;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.JsonObject;
+import com.mapbox.android.core.permissions.PermissionsListener;
+import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.api.geocoding.v5.models.CarmenFeature;
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
-import com.mapbox.mapboxsdk.annotations.MarkerOptions;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
 import com.mapbox.mapboxsdk.geometry.LatLng;
+import com.mapbox.mapboxsdk.location.LocationComponent;
+import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
+import com.mapbox.mapboxsdk.location.OnCameraTrackingChangedListener;
+import com.mapbox.mapboxsdk.location.OnLocationClickListener;
+import com.mapbox.mapboxsdk.location.modes.CameraMode;
+import com.mapbox.mapboxsdk.location.modes.RenderMode;
 import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
@@ -37,6 +44,9 @@ import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import android.graphics.PointF;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +57,8 @@ import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAllowOverlap;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, MapboxMap.OnMapClickListener {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
+        MapboxMap.OnMapClickListener, PermissionsListener, OnCameraTrackingChangedListener, OnLocationClickListener {
 
     private static final int REQUEST_CODE_AUTOCOMPLETE = 1;
     private MapView mapView;
@@ -57,10 +68,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     CarmenFeature work;
     private final String geojsonSourceLayerId = "geojsonSourceLayerId";
     private final String symbolIconId = "symbolIconId";
-    private boolean markerSelected = false;
     List<Feature> markerCoordinates = new ArrayList<>();
-
-
+    private PermissionsManager permissionsManager;
+    private boolean isInTrackingMode;
+    private LocationComponent locationComponent;
+    private ImageView header_Arrow_Image;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,6 +80,30 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_main);
         mapView = findViewById(R.id.mapView);
         mapView.getMapAsync(this);
+
+        LinearLayout mBottomSheetLayout = findViewById(R.id.bottom_sheet_layout);
+        BottomSheetBehavior sheetBehavior = BottomSheetBehavior.from(mBottomSheetLayout);
+
+        header_Arrow_Image = findViewById(R.id.bottom_sheet_arrow);
+
+        header_Arrow_Image.setOnClickListener(v -> {
+
+            if(sheetBehavior.getState() != BottomSheetBehavior.STATE_EXPANDED){
+                sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            } else {
+                sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+            }
+
+        });
+        sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(@NonNull View bottomSheet, int newState) {
+            }
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                header_Arrow_Image.setRotation(slideOffset * 180);
+            }
+        });
 
     }
 
@@ -79,6 +115,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             addUserLocations();
             style.addImage(symbolIconId, BitmapFactory.decodeResource(
                     MainActivity.this.getResources(), R.drawable.mapbox_marker_icon_blue));
+            initSearchFab();
+            enableLocationComponent(style);
             setUpSource(style);
             setupLayer(style);
         });
@@ -133,8 +171,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     private void setUpSource(@NonNull Style loadedMapStyle) {
-        loadedMapStyle.addSource(new GeoJsonSource(geojsonSourceLayerId,
-                FeatureCollection.fromFeatures(markerCoordinates)));
+        loadedMapStyle.addSource(new GeoJsonSource(geojsonSourceLayerId));
     }
 
     private void setupLayer(@NonNull Style loadedMapStyle) {
@@ -147,22 +184,30 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        markerCoordinates.add(Feature.fromGeometry(
+                Point.fromLngLat(-71.065634, 42.354950))); // Boston Common Park
+        markerCoordinates.add(Feature.fromGeometry(
+                Point.fromLngLat(-71.097293, 42.346645))); // Fenway Park
+        markerCoordinates.add(Feature.fromGeometry(
+                Point.fromLngLat(-71.053694, 42.363725)));
+        if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        locationComponent.setLocationComponentEnabled(false);
         if (resultCode == Activity.RESULT_OK && requestCode == REQUEST_CODE_AUTOCOMPLETE) {
             CarmenFeature selectedCarmenFeature = PlaceAutocomplete.getPlace(data);
-            markerCoordinates.add(Feature.fromGeometry(
-                    Point.fromLngLat(-71.065634, 42.354950))); // Boston Common Park
-            markerCoordinates.add(Feature.fromGeometry(
-                    Point.fromLngLat(-71.097293, 42.346645))); // Fenway Park
-            markerCoordinates.add(Feature.fromGeometry(
-                    Point.fromLngLat(-71.053694, 42.363725)));
             if (mapboxMap != null) {
                 Style style = mapboxMap.getStyle();
                 if (style != null) {
                     GeoJsonSource source = style.getSourceAs(geojsonSourceLayerId);
                     if (source != null) {
-//                        source.setGeoJson(FeatureCollection.fromFeatures(
-//                                new Feature[]{Feature.fromJson(selectedCarmenFeature.toJson())}));
-                        source.setGeoJson(FeatureCollection.fromFeatures(markerCoordinates));
+                        System.out.println(selectedCarmenFeature.toJson() + "Ovdeeeeeeeeeeeeeeeeeeeee");
+                        source.setGeoJson(FeatureCollection.fromFeatures(
+                                new Feature[]{Feature.fromJson(selectedCarmenFeature.toJson())}));
+//                        source.setGeoJson(FeatureCollection.fromFeatures(markerCoordinates));
                     }
                     mapboxMap.animateCamera(CameraUpdateFactory.newCameraPosition(
                             new CameraPosition.Builder()
@@ -181,16 +226,87 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
+    @SuppressWarnings({"MissingPermission"})
+    private void enableLocationComponent(@NonNull Style loadedMapStyle) {
+        if (PermissionsManager.areLocationPermissionsGranted(this)) {
+            locationComponent = mapboxMap.getLocationComponent();
+            locationComponent.activateLocationComponent(
+                    LocationComponentActivationOptions.builder(this, loadedMapStyle).build());
+            locationComponent.setLocationComponentEnabled(true);
+            locationComponent.setCameraMode(CameraMode.TRACKING);
+            locationComponent.setRenderMode(RenderMode.COMPASS);
+            findViewById(R.id.back_to_camera_tracking_mode).setOnClickListener(view -> {
+                if (!isInTrackingMode) {
+                    isInTrackingMode = true;
+                    locationComponent.setCameraMode(CameraMode.TRACKING);
+                    locationComponent.zoomWhileTracking(16f);
+                    Toast.makeText(MainActivity.this, "Enabled",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "Alredy enabled",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        } else {
+            permissionsManager = new PermissionsManager(this);
+            permissionsManager.requestLocationPermissions(this);
+        }
+    }
+
+    @Override
+    public void onCameraTrackingDismissed() {
+        isInTrackingMode = false;
+    }
+
+    @Override
+    public void onCameraTrackingChanged(int currentMode) {
+// Empty on purpose
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    @Override
+    public void onExplanationNeeded(List<String> permissionsToExplain) {
+        Toast.makeText(this, R.string.mapbox_plugins_place_picker_user_location_permission_explanation, Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onPermissionResult(boolean granted) {
+        if (granted) {
+            mapboxMap.getStyle(this::enableLocationComponent);
+        } else {
+            Toast.makeText(this, R.string.mapbox_plugins_place_picker_user_location_permission_not_granted, Toast.LENGTH_LONG).show();
+            finish();
+        }
+    }
+
+    @SuppressWarnings({"MissingPermission"})
+    @Override
+    public void onLocationComponentClick() {
+        if (locationComponent.getLastKnownLocation() != null) {
+            Toast.makeText(this, String.format("CurrentLocation",
+                    locationComponent.getLastKnownLocation().getLatitude(),
+                    locationComponent.getLastKnownLocation().getLongitude()), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    @SuppressWarnings({"MissingPermission"})
+    protected void onStart() {
+        super.onStart();
+        mapView.onStart();
+    }
+
+
     @Override
     public void onResume() {
         super.onResume();
         mapView.onResume();
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        mapView.onStart();
     }
 
     @Override
