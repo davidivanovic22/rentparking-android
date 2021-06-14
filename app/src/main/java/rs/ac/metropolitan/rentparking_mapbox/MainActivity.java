@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static com.google.android.material.bottomsheet.BottomSheetBehavior.*;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAllowOverlap;
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean isInTrackingMode;
     private LocationComponent locationComponent;
     private ImageView header_Arrow_Image;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,23 +84,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapView.getMapAsync(this);
 
         LinearLayout mBottomSheetLayout = findViewById(R.id.bottom_sheet_layout);
-        BottomSheetBehavior sheetBehavior = BottomSheetBehavior.from(mBottomSheetLayout);
+        BottomSheetBehavior sheetBehavior = from(mBottomSheetLayout);
 
         header_Arrow_Image = findViewById(R.id.bottom_sheet_arrow);
 
         header_Arrow_Image.setOnClickListener(v -> {
 
-            if(sheetBehavior.getState() != BottomSheetBehavior.STATE_EXPANDED){
-                sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            if (sheetBehavior.getState() != STATE_EXPANDED) {
+                sheetBehavior.setState(STATE_EXPANDED);
+                findViewById(R.id.back_to_camera_tracking_mode).setVisibility(View.INVISIBLE);
+                findViewById(R.id.fab_location_search).setVisibility(View.INVISIBLE);
             } else {
-                sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                sheetBehavior.setState(STATE_COLLAPSED);
+                findViewById(R.id.back_to_camera_tracking_mode).setVisibility(View.VISIBLE);
+                findViewById(R.id.fab_location_search).setVisibility(View.VISIBLE);
             }
 
         });
-        sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+        sheetBehavior.addBottomSheetCallback(new BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
             }
+
             @Override
             public void onSlide(@NonNull View bottomSheet, float slideOffset) {
                 header_Arrow_Image.setRotation(slideOffset * 180);
@@ -121,20 +128,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             setupLayer(style);
         });
 
-    }
-
-    private void showBottomSheetDialog() {
-
-        final BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
-        bottomSheetDialog.setContentView(R.layout.bottom_sheet_dialog);
-//
-//        LinearLayout copy = bottomSheetDialog.findViewById(R.id.copyLinearLayout);
-//        LinearLayout share = bottomSheetDialog.findViewById(R.id.shareLinearLayout);
-////        LinearLayout upload = bottomSheetDialog.findViewById(R.id.uploadLinearLayout);
-//        LinearLayout download = bottomSheetDialog.findViewById(R.id.download);
-//        LinearLayout delete = bottomSheetDialog.findViewById(R.id.delete);
-
-        bottomSheetDialog.show();
     }
 
 
@@ -204,7 +197,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (style != null) {
                     GeoJsonSource source = style.getSourceAs(geojsonSourceLayerId);
                     if (source != null) {
-                        System.out.println(selectedCarmenFeature.toJson() + "Ovdeeeeeeeeeeeeeeeeeeeee");
                         source.setGeoJson(FeatureCollection.fromFeatures(
                                 new Feature[]{Feature.fromJson(selectedCarmenFeature.toJson())}));
 //                        source.setGeoJson(FeatureCollection.fromFeatures(markerCoordinates));
