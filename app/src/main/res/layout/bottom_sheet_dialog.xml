@@ -8,7 +8,8 @@
     android:orientation="vertical"
     app:behavior_hideable="false"
     app:behavior_peekHeight="30dp"
-    app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+    app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
+    tools:context=".activity.MainActivity">
 
     <LinearLayout
         android:id="@+id/bottom_sheet_header"
@@ -32,79 +33,16 @@
     </LinearLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/activity_cards"
         android:layout_width="match_parent"
-        android:layout_height="600dp"
-        android:background="@color/teal_200">
+        android:layout_height="match_parent"
+        tools:context=".activity.BookingActivity">
 
-        <androidx.cardview.widget.CardView
-            android:layout_width="316dp"
-            android:layout_height="219dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/round_card"
-            app:cardBackgroundColor="@color/colorPrimary"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/card"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/round_card">
-
-                <TextView
-                    android:id="@+id/vehicleCategory"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginTop="8dp"
-                    android:fontFamily="@font/roboto_bold"
-                    android:text="@string/parkings"
-                    android:textColor="@color/statusBarColor"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <Button
-                    android:id="@+id/select"
-                    android:layout_width="124dp"
-                    android:layout_height="40dp"
-                    android:layout_marginEnd="4dp"
-                    android:layout_marginBottom="4dp"
-                    android:background="@drawable/select_button"
-                    android:fontFamily="@font/roboto_light"
-                    android:text="Select"
-                    android:textSize="16sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent" />
-
-                <TextView
-                    android:id="@+id/quantity"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:fontFamily="@font/roboto_light"
-                    android:text="Total: 20"
-                    android:textColor="@android:color/background_light"
-                    android:textSize="18sp"
-                    app:layout_constraintBottom_toBottomOf="@+id/select"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="@+id/select" />
-
-                <ImageView
-                    android:id="@+id/categoryImage"
-                    android:layout_width="322dp"
-                    android:layout_height="235dp"
-                    app:layout_constraintBottom_toTopOf="@+id/select"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/vehicleCategory" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </androidx.cardview.widget.CardView>
+        <ListView
+            android:id="@+id/list_cards"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@android:color/transparent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </LinearLayout>

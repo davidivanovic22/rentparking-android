@@ -7,4 +7,6 @@
     <string name="search">Search</string>
     <string name="parkings">Parkings</string>
     <string name="arrow">Arrow</string>
+    <string name="image">Image</string>
+    <string name="select">Select</string>
 </resources>

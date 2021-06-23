@@ -1,4 +1,4 @@
-package rs.ac.metropolitan.rentparking_mapbox;
+package rs.ac.metropolitan.rentparking_mapbox.activity;
 
 import android.Manifest;
 import android.animation.ValueAnimator;
@@ -7,15 +7,16 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
@@ -39,18 +40,32 @@ import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.maps.Style;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
-import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
-import android.graphics.PointF;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.Toast;
 
+import org.jetbrains.annotations.NotNull;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import rs.ac.metropolitan.rentparking_mapbox.R;
+import rs.ac.metropolitan.rentparking_mapbox.adapter.CardAdapter;
+import rs.ac.metropolitan.rentparking_mapbox.entity.User;
+import rs.ac.metropolitan.rentparking_mapbox.entity.data.dto.BookingDTO;
+import rs.ac.metropolitan.rentparking_mapbox.entity.service.BookingService;
+import rs.ac.metropolitan.rentparking_mapbox.entity.service.UserService;
 
 import static com.google.android.material.bottomsheet.BottomSheetBehavior.*;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
@@ -74,22 +89,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean isInTrackingMode;
     private LocationComponent locationComponent;
     private ImageView header_Arrow_Image;
+    private Retrofit retrofit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        retrofit = new Retrofit.Builder()
+                .baseUrl("http://10.0.2.2:8080/rentparking/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
         Mapbox.getInstance(this, getString(R.string.mapbox_access_token));
         setContentView(R.layout.activity_main);
         mapView = findViewById(R.id.mapView);
         mapView.getMapAsync(this);
 
         LinearLayout mBottomSheetLayout = findViewById(R.id.bottom_sheet_layout);
-        BottomSheetBehavior sheetBehavior = from(mBottomSheetLayout);
+        BottomSheetBehavior<View> sheetBehavior = from(mBottomSheetLayout);
 
         header_Arrow_Image = findViewById(R.id.bottom_sheet_arrow);
 
         header_Arrow_Image.setOnClickListener(v -> {
-
             if (sheetBehavior.getState() != STATE_EXPANDED) {
                 sheetBehavior.setState(STATE_EXPANDED);
                 findViewById(R.id.back_to_camera_tracking_mode).setVisibility(View.INVISIBLE);
@@ -127,6 +147,57 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             setUpSource(style);
             setupLayer(style);
         });
+
+    }
+
+    public void getAllBookingDTO(LocalDateTime from, LocalDateTime to, Intent data) {
+        CarmenFeature selectedCarmenFeature = PlaceAutocomplete.getPlace(data);
+        if (mapboxMap != null) {
+            Style style = mapboxMap.getStyle();
+            if (style != null) {
+                GeoJsonSource source = style.getSourceAs(geojsonSourceLayerId);
+                if (source != null) {
+                    BookingService bookingService = retrofit.create(BookingService.class);
+                    Call<List<BookingDTO>> callBookingDTO = bookingService.findAllBookingDTO(Objects
+                            .requireNonNull(selectedCarmenFeature.placeName()).split(",")[0], from, to);
+
+                    ListView lvCards = (ListView) findViewById(R.id.list_cards);
+                    CardAdapter adapter = new CardAdapter(this);
+                    lvCards.setAdapter(adapter);
+
+                    callBookingDTO.enqueue(new Callback<List<BookingDTO>>() {
+                        @RequiresApi(api = Build.VERSION_CODES.N)
+                        @Override
+                        public void onResponse(@NotNull Call<List<BookingDTO>> call, @NotNull Response<List<BookingDTO>> response) {
+                            if (!response.isSuccessful()) {
+                                System.out.println(response.code());
+                            }
+                            List<BookingDTO> bookingDTOList = response.body();
+                            assert bookingDTOList != null;
+                            for (BookingDTO bookingDTO : bookingDTOList) {
+                                adapter.add(bookingDTO);
+                                markerCoordinates.add(Feature.fromGeometry(
+                                        Point.fromLngLat(bookingDTO.getParking().getLocation().getLongitude(),
+                                                 bookingDTO.getParking().getLocation().getLatitude())));
+                            }
+                            source.setGeoJson(FeatureCollection.fromFeatures(markerCoordinates));
+                        }
+
+
+                        @Override
+                        public void onFailure(@NotNull Call<List<BookingDTO>> call, Throwable t) {
+                            System.out.println(t.getMessage() + "DAVIDDDDDDDDDDDDDDDDD");
+                        }
+                    });
+                }
+                mapboxMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                        new CameraPosition.Builder()
+                                .target(new LatLng(((Point) Objects.requireNonNull(selectedCarmenFeature.geometry())).latitude(),
+                                        ((Point) selectedCarmenFeature.geometry()).longitude()))
+                                .zoom(13)
+                                .build()), 4000);
+            }
+        }
 
     }
 
@@ -174,15 +245,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         ));
     }
 
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        markerCoordinates.add(Feature.fromGeometry(
-                Point.fromLngLat(-71.065634, 42.354950))); // Boston Common Park
-        markerCoordinates.add(Feature.fromGeometry(
-                Point.fromLngLat(-71.097293, 42.346645))); // Fenway Park
-        markerCoordinates.add(Feature.fromGeometry(
-                Point.fromLngLat(-71.053694, 42.363725)));
         if (ActivityCompat.checkSelfPermission(
                 this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this,
@@ -191,24 +257,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         locationComponent.setLocationComponentEnabled(false);
         if (resultCode == Activity.RESULT_OK && requestCode == REQUEST_CODE_AUTOCOMPLETE) {
-            CarmenFeature selectedCarmenFeature = PlaceAutocomplete.getPlace(data);
-            if (mapboxMap != null) {
-                Style style = mapboxMap.getStyle();
-                if (style != null) {
-                    GeoJsonSource source = style.getSourceAs(geojsonSourceLayerId);
-                    if (source != null) {
-                        source.setGeoJson(FeatureCollection.fromFeatures(
-                                new Feature[]{Feature.fromJson(selectedCarmenFeature.toJson())}));
-//                        source.setGeoJson(FeatureCollection.fromFeatures(markerCoordinates));
-                    }
-                    mapboxMap.animateCamera(CameraUpdateFactory.newCameraPosition(
-                            new CameraPosition.Builder()
-                                    .target(new LatLng(((Point) Objects.requireNonNull(selectedCarmenFeature.geometry())).latitude(),
-                                            ((Point) selectedCarmenFeature.geometry()).longitude()))
-                                    .zoom(9)
-                                    .build()), 4000);
-                }
-            }
+            getAllBookingDTO(null, null, data);
         }
     }
 
@@ -286,6 +335,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     locationComponent.getLastKnownLocation().getLongitude()), Toast.LENGTH_LONG).show();
         }
     }
+
 
     @Override
     @SuppressWarnings({"MissingPermission"})
