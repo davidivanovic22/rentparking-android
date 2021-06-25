@@ -1,4 +1,4 @@
-package rs.ac.metropolitan.rentparking_mapbox.entity.service;
+package rs.ac.metropolitan.rentparking_mapbox.service;
 
 
 

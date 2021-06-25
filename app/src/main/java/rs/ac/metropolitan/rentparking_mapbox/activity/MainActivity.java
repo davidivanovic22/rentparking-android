@@ -43,6 +43,7 @@ import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -62,10 +63,8 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import rs.ac.metropolitan.rentparking_mapbox.R;
 import rs.ac.metropolitan.rentparking_mapbox.adapter.CardAdapter;
-import rs.ac.metropolitan.rentparking_mapbox.entity.User;
 import rs.ac.metropolitan.rentparking_mapbox.entity.data.dto.BookingDTO;
-import rs.ac.metropolitan.rentparking_mapbox.entity.service.BookingService;
-import rs.ac.metropolitan.rentparking_mapbox.entity.service.UserService;
+import rs.ac.metropolitan.rentparking_mapbox.service.BookingService;
 
 import static com.google.android.material.bottomsheet.BottomSheetBehavior.*;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
@@ -90,6 +89,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LocationComponent locationComponent;
     private ImageView header_Arrow_Image;
     private Retrofit retrofit;
+    private static final String TAG = "MainActivity";
+    private Button buy;
+    private CardAdapter adapter;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 sheetBehavior.setState(STATE_EXPANDED);
                 findViewById(R.id.back_to_camera_tracking_mode).setVisibility(View.INVISIBLE);
                 findViewById(R.id.fab_location_search).setVisibility(View.INVISIBLE);
+
             } else {
                 sheetBehavior.setState(STATE_COLLAPSED);
                 findViewById(R.id.back_to_camera_tracking_mode).setVisibility(View.VISIBLE);
@@ -131,6 +135,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 header_Arrow_Image.setRotation(slideOffset * 180);
             }
         });
+
 
     }
 
@@ -162,7 +167,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             .requireNonNull(selectedCarmenFeature.placeName()).split(",")[0], from, to);
 
                     ListView lvCards = (ListView) findViewById(R.id.list_cards);
-                    CardAdapter adapter = new CardAdapter(this);
+                    adapter = new CardAdapter(this);
                     lvCards.setAdapter(adapter);
 
                     callBookingDTO.enqueue(new Callback<List<BookingDTO>>() {
@@ -176,9 +181,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             assert bookingDTOList != null;
                             for (BookingDTO bookingDTO : bookingDTOList) {
                                 adapter.add(bookingDTO);
+
                                 markerCoordinates.add(Feature.fromGeometry(
                                         Point.fromLngLat(bookingDTO.getParking().getLocation().getLongitude(),
-                                                 bookingDTO.getParking().getLocation().getLatitude())));
+                                                bookingDTO.getParking().getLocation().getLatitude())));
                             }
                             source.setGeoJson(FeatureCollection.fromFeatures(markerCoordinates));
                         }
@@ -196,6 +202,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                                         ((Point) selectedCarmenFeature.geometry()).longitude()))
                                 .zoom(13)
                                 .build()), 4000);
+
             }
         }
 
@@ -274,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             locationComponent.activateLocationComponent(
                     LocationComponentActivationOptions.builder(this, loadedMapStyle).build());
             locationComponent.setLocationComponentEnabled(true);
-            locationComponent.setCameraMode(CameraMode.TRACKING);
+//           locationComponent.setCameraMode(CameraMode.TRACKING);
             locationComponent.setRenderMode(RenderMode.COMPASS);
             findViewById(R.id.back_to_camera_tracking_mode).setOnClickListener(view -> {
                 if (!isInTrackingMode) {
@@ -380,4 +387,5 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onSaveInstanceState(outState);
         mapView.onSaveInstanceState(outState);
     }
+
 }

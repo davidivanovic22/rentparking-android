@@ -1,6 +1,5 @@
-package rs.ac.metropolitan.rentparking_mapbox.entity.service;
+package rs.ac.metropolitan.rentparking_mapbox.service;
 
-import java.util.Collection;
 import java.util.List;
 
 import rs.ac.metropolitan.rentparking_mapbox.entity.*;

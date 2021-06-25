@@ -1,8 +1,7 @@
-package rs.ac.metropolitan.rentparking_mapbox.entity.service;
+package rs.ac.metropolitan.rentparking_mapbox.service;
 
 import rs.ac.metropolitan.rentparking_mapbox.entity.*;
 
-import java.util.Collection;
 import java.util.List;
 
 public interface RoleService {
