@@ -15,4 +15,5 @@
     <string name="username">Username</string>
     <string name="rentparking">RentParking</string>
     <string name="login">Login</string>
+    <string name="pay">Pay</string>
 </resources>

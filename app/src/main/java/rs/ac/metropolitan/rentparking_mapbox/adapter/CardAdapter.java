@@ -1,7 +1,9 @@
 package rs.ac.metropolitan.rentparking_mapbox.adapter;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.text.format.DateFormat;
@@ -12,21 +14,40 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.TimePicker;
 
 import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 
+
+import org.jetbrains.annotations.NotNull;
+
+import java.time.LocalDateTime;
 import java.util.Calendar;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 import rs.ac.metropolitan.rentparking_mapbox.R;
+import rs.ac.metropolitan.rentparking_mapbox.entity.Booking;
+import rs.ac.metropolitan.rentparking_mapbox.entity.Parking;
+import rs.ac.metropolitan.rentparking_mapbox.entity.User;
 import rs.ac.metropolitan.rentparking_mapbox.entity.data.domen.BookingStatus;
 import rs.ac.metropolitan.rentparking_mapbox.entity.data.dto.BookingDTO;
-import timber.log.Timber;
+import rs.ac.metropolitan.rentparking_mapbox.service.BookingService;
 
 public class CardAdapter extends ArrayAdapter<BookingDTO> {
-
+    private LocalDateTime from;
+    private LocalDateTime to;
+    private String fromStr;
+    private String toStr;
+    private BookingDTO bookingDTO;
+    private Retrofit retrofit;
+    private Booking booking = new Booking();
+    private User user;
+    private Parking parking;
     public CardAdapter(Context context) {
         super(context, R.layout.card_item);
     }
@@ -42,6 +63,13 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
             LayoutInflater vi =
                     (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             v = vi.inflate(R.layout.card_item, null);
+
+            retrofit = new Retrofit.Builder()
+                    .baseUrl("http://10.0.2.2:8080/rentparking/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
+
+
             // cache view fields into the holder
             holder = new ViewHolder();
             holder.name = (TextView) v.findViewById(R.id.name);
@@ -50,12 +78,17 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
             holder.buy = (Button) v.findViewById(R.id.buy);
             holder.status = (Button) v.findViewById(R.id.status);
             // associate the holder with the view for later lookup
+
+
             v.setTag(holder);
         } else {
             // view already exists, get the holder instance from the view
             holder = (ViewHolder) v.getTag();
         }
-        BookingDTO bookingDTO = getItem(position);
+        bookingDTO = getItem(position);
+
+        parking = bookingDTO.getParking();
+
 
 //        holder.image.setImage;
         Glide.with(getContext()).load(bookingDTO.getParking().getParkingPic()).into(holder.image);
@@ -71,7 +104,7 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
 
         View.OnClickListener corkyListener = v1 -> {
             System.out.println(bookingDTO);
-            startDateTime(bookingDTO);
+            startDateTime();
         };
 
         holder.buy.setOnClickListener(corkyListener);
@@ -90,8 +123,32 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
         }
     }
 
+    public void saveBookingDTO() {
+        BookingService bookingService = retrofit.create(BookingService.class);
 
-    private void startDateTime(BookingDTO bookingDTO) {
+        Call<BookingDTO> callBookingDTO = bookingService.saveBookingDTO(bookingDTO);
+
+        callBookingDTO.enqueue(new Callback<BookingDTO>() {
+            @Override
+            public void onResponse(@NotNull Call<BookingDTO> call, @NotNull Response<BookingDTO> response) {
+                if (!response.isSuccessful()) {
+                    System.out.println(response.code());
+                }
+                BookingDTO bookingDTO = response.body();
+
+                System.out.println(bookingDTO);
+
+            }
+
+            @Override
+            public void onFailure(@NotNull Call<BookingDTO> call, Throwable t) {
+                System.out.println(t.getMessage() + "DAVIDDDDDDDDDDDDDDDDD");
+            }
+        });
+    }
+
+
+    private void startDateTime() {
         Calendar calendar = Calendar.getInstance();
         int YEAR = calendar.get(Calendar.YEAR);
         int MONTH = calendar.get(Calendar.MONTH);
@@ -99,13 +156,18 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
         int HOUR = calendar.get(Calendar.HOUR);
         int MINUTE = calendar.get(Calendar.MINUTE);
         boolean is24HourFormat = DateFormat.is24HourFormat(this.getContext());
+        booking = new Booking();
 
 
         TimePickerDialog timePickerDialog = new TimePickerDialog(this.getContext(), (timePicker, hour, minute) -> {
             Calendar calendar1 = Calendar.getInstance();
             calendar1.set(Calendar.HOUR, hour);
             calendar1.set(Calendar.MINUTE, minute);
-            endDateTime(bookingDTO);
+            System.out.println(fromStr);
+            fromStr += DateFormat.format("hh:MM:ss", calendar1).toString();
+            System.out.println(fromStr);
+            booking.setFrom(fromStr);
+            endDateTime();
         }, HOUR, MINUTE, is24HourFormat);
 
 
@@ -114,6 +176,8 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
             calendar1.set(Calendar.YEAR, year);
             calendar1.set(Calendar.MONTH, month);
             calendar1.set(Calendar.DATE, date);
+            fromStr = DateFormat.format("yyyy-MM-ddT", calendar1).toString();
+            System.out.println(fromStr + " FROMSTR");
             timePickerDialog.show();
         }, YEAR, MONTH, DATE);
 
@@ -121,7 +185,7 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
 
     }
 
-    private void endDateTime(BookingDTO bookingDTO) {
+    private void endDateTime() {
         Calendar calendar = Calendar.getInstance();
         int YEAR = calendar.get(Calendar.YEAR);
         int MONTH = calendar.get(Calendar.MONTH);
@@ -129,12 +193,19 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
         int HOUR = calendar.get(Calendar.HOUR);
         int MINUTE = calendar.get(Calendar.MINUTE);
         boolean is24HourFormat = DateFormat.is24HourFormat(this.getContext());
-
+        user = new User();
+        user.setId(4);
 
         TimePickerDialog timePickerDialog = new TimePickerDialog(this.getContext(), (timePicker, hour, minute) -> {
             Calendar calendar1 = Calendar.getInstance();
             calendar1.set(Calendar.HOUR, hour);
             calendar1.set(Calendar.MINUTE, minute);
+            toStr += DateFormat.format("hh:mm:ss", calendar1).toString();
+            booking.setTo(toStr);
+            booking.setParking(bookingDTO.getParking());
+            booking.setUser(user);
+            bookingDTO.setBooking(booking);
+            createNewDialog().show();;
         }, HOUR, MINUTE, is24HourFormat);
 
 
@@ -143,11 +214,25 @@ public class CardAdapter extends ArrayAdapter<BookingDTO> {
             calendar1.set(Calendar.YEAR, year);
             calendar1.set(Calendar.MONTH, month);
             calendar1.set(Calendar.DATE, date);
+            toStr = DateFormat.format("yyyy-MM-ddT", calendar1).toString();
             timePickerDialog.show();
         }, YEAR, MONTH, DATE);
 
         datePickerDialog.show();
 
     }
+
+    public Dialog createNewDialog() {
+        AlertDialog dlg = null;
+        dlg = new AlertDialog.Builder(getContext())
+                .setTitle("Payment")
+                .setPositiveButton("Pay", (dialog, which) -> {
+                    saveBookingDTO();
+                })
+                .create();
+
+        return dlg;
+    }
+
 
 }
